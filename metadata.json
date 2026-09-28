@@ -1,0 +1,7 @@
+{
+  "name": "PODA E-Liquid Sales Hub",
+  "description": "Aplikasi manajemen sales representative untuk PODA E-LIQUID COMPANY yang dilengkapi form login autentikasi, upload & proteksi logo company terenkripsi sesi PODA E-Liquid Company, manajemen hak akses menu per role (RBAC), penambahan user baru, katalog produk & import data stok CSV/Excel, jadwal kunjungan toko, dan sinkronisasi real-time.",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
