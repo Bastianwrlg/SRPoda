@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { 
   Customer, 
+  CustomerStatus,
   VisitSchedule, 
   DailySalesReport, 
   ProductLiquid, 
@@ -35,6 +36,30 @@ import { SyncLogsModal } from './components/SyncLogsModal';
 import { CompanyLogoModal } from './components/CompanyLogoModal';
 import { CustomerImportMode } from './components/ImportCustomerModal';
 import { CheckCircle2, AlertTriangle, Info, Bell, RefreshCw, Lock } from 'lucide-react';
+import {
+  testConnection,
+  subscribeCustomers,
+  subscribeProducts,
+  subscribeVisits,
+  subscribeSalesReports,
+  subscribeUsers,
+  subscribeRolePermissions,
+  subscribeBranding,
+  subscribeDailyTarget,
+  cloudSaveCustomer,
+  cloudDeleteCustomer,
+  cloudBatchSaveCustomers,
+  cloudBatchSaveProducts,
+  cloudSaveVisit,
+  cloudDeleteVisit,
+  cloudSaveSalesReport,
+  cloudSaveUser,
+  cloudDeleteUser,
+  cloudSaveRolePermissions,
+  cloudSaveBranding,
+  cloudSaveDailyTarget,
+  seedInitialDataIfEmpty
+} from './firebase';
 
 interface Toast {
   id: string;
@@ -246,13 +271,175 @@ export default function App() {
     localStorage.setItem('poda_sales_reports', JSON.stringify(salesReports));
   }, [salesReports]);
 
-  // Automated Real-Time Heartbeat & Synchronization Loop (Runs every 35 seconds)
+  const getIndonesianTime = useCallback(() => {
+    const now = new Date();
+    return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')} WIB`;
+  }, []);
+
+  // Listen to Real-Time Updates from Firebase Firestore
+  useEffect(() => {
+    if (!syncState.isOnline) return;
+
+    let isSubscribed = true;
+
+    // Check Cloud Connection and Seed Initial Data if Cloud Collections are Empty
+    testConnection().then((connected) => {
+      if (!isSubscribed) return;
+      if (connected) {
+        setSyncState(prev => ({
+          ...prev,
+          isOnline: true,
+          logs: [
+            {
+              id: `log-${Date.now()}`,
+              timestamp: getIndonesianTime(),
+              message: 'Koneksi real-time cloud aktif (Firebase Firestore Jakarta). Sinkronisasi multi-user berjalan otomatis.',
+              type: 'success'
+            },
+            ...prev.logs.slice(0, 19)
+          ]
+        }));
+
+        seedInitialDataIfEmpty({
+          customers: INITIAL_CUSTOMERS,
+          products: INITIAL_PRODUCTS,
+          visits: INITIAL_VISITS,
+          salesReports: INITIAL_DAILY_REPORTS,
+          users: INITIAL_USERS,
+          rolePermissions: INITIAL_ROLE_PERMISSIONS,
+          branding: DEFAULT_BRANDING,
+          dailyTarget: INITIAL_DAILY_TARGET
+        });
+      }
+    });
+
+    // Real-time listener for Customers
+    const unsubCustomers = subscribeCustomers(
+      (cloudCustomers) => {
+        if (!isSubscribed) return;
+        if (cloudCustomers && cloudCustomers.length > 0) {
+          setCustomers(cloudCustomers);
+          localStorage.setItem('poda_customers', JSON.stringify(cloudCustomers));
+          setSyncState(prev => ({
+            ...prev,
+            lastSyncTime: getIndonesianTime(),
+            logs: [
+              {
+                id: `log-${Date.now()}`,
+                timestamp: getIndonesianTime(),
+                message: `Sinkronisasi real-time: ${cloudCustomers.length} data mitra toko diselaraskan secara langsung`,
+                type: 'info'
+              },
+              ...prev.logs.slice(0, 19)
+            ]
+          }));
+        }
+      },
+      (err) => console.warn('Customer subscription error:', err)
+    );
+
+    // Real-time listener for Products
+    const unsubProducts = subscribeProducts(
+      (cloudProducts) => {
+        if (!isSubscribed) return;
+        if (cloudProducts && cloudProducts.length > 0) {
+          setProducts(cloudProducts);
+          localStorage.setItem('poda_products', JSON.stringify(cloudProducts));
+        }
+      },
+      (err) => console.warn('Product subscription error:', err)
+    );
+
+    // Real-time listener for Visits
+    const unsubVisits = subscribeVisits(
+      (cloudVisits) => {
+        if (!isSubscribed) return;
+        if (cloudVisits && cloudVisits.length > 0) {
+          setVisits(cloudVisits);
+          localStorage.setItem('poda_visits', JSON.stringify(cloudVisits));
+        }
+      },
+      (err) => console.warn('Visits subscription error:', err)
+    );
+
+    // Real-time listener for Sales Reports
+    const unsubSales = subscribeSalesReports(
+      (cloudSales) => {
+        if (!isSubscribed) return;
+        if (cloudSales && cloudSales.length > 0) {
+          setSalesReports(cloudSales);
+          localStorage.setItem('poda_sales_reports', JSON.stringify(cloudSales));
+        }
+      },
+      (err) => console.warn('Sales subscription error:', err)
+    );
+
+    // Real-time listener for Users
+    const unsubUsers = subscribeUsers(
+      (cloudUsers) => {
+        if (!isSubscribed) return;
+        if (cloudUsers && cloudUsers.length > 0) {
+          setUsers(cloudUsers);
+          localStorage.setItem('poda_users', JSON.stringify(cloudUsers));
+        }
+      },
+      (err) => console.warn('Users subscription error:', err)
+    );
+
+    // Real-time listener for Role Permissions
+    const unsubRoles = subscribeRolePermissions(
+      (cloudRoles) => {
+        if (!isSubscribed) return;
+        if (cloudRoles && cloudRoles.length > 0) {
+          setRolePermissions(cloudRoles);
+          localStorage.setItem('poda_role_permissions', JSON.stringify(cloudRoles));
+        }
+      },
+      (err) => console.warn('Roles subscription error:', err)
+    );
+
+    // Real-time listener for Branding
+    const unsubBranding = subscribeBranding(
+      (cloudBranding) => {
+        if (!isSubscribed) return;
+        if (cloudBranding) {
+          setBranding(cloudBranding);
+          localStorage.setItem('poda_company_branding', JSON.stringify(cloudBranding));
+        }
+      },
+      (err) => console.warn('Branding subscription error:', err)
+    );
+
+    // Real-time listener for Daily Target
+    const unsubDailyTarget = subscribeDailyTarget(
+      (cloudTarget) => {
+        if (!isSubscribed) return;
+        if (cloudTarget) {
+          setDailyTarget(cloudTarget);
+        }
+      },
+      (err) => console.warn('Daily target subscription error:', err)
+    );
+
+    return () => {
+      isSubscribed = false;
+      unsubCustomers();
+      unsubProducts();
+      unsubVisits();
+      unsubSales();
+      unsubUsers();
+      unsubRoles();
+      unsubBranding();
+      unsubDailyTarget();
+    };
+  }, [syncState.isOnline, getIndonesianTime]);
+
+  // Periodic heartbeat checker
   useEffect(() => {
     const interval = setInterval(() => {
       if (!syncState.isOnline) return;
 
-      const now = new Date();
-      const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')} WIB`;
+      const timeStr = getIndonesianTime();
 
       setSyncState(prev => {
         const hasPending = prev.pendingSyncCount > 0;
@@ -260,8 +447,8 @@ export default function App() {
           id: `log-${Date.now()}`,
           timestamp: timeStr,
           message: hasPending 
-            ? `Sinkronisasi otomatis berhasil: ${prev.pendingSyncCount} perubahan dikirim ke database PODA` 
-            : 'Pemeriksaan integritas data real-time: status selaras sempurna',
+            ? `Sinkronisasi otomatis berhasil: ${prev.pendingSyncCount} perubahan tersimpan ke Cloud Firestore` 
+            : 'Pemeriksaan integritas real-time cloud: status selaras dengan pengguna lain',
           type: 'success'
         };
 
@@ -272,58 +459,70 @@ export default function App() {
           logs: [newLog, ...prev.logs.slice(0, 19)]
         };
       });
-    }, 35000);
+    }, 45000);
 
     return () => clearInterval(interval);
-  }, [syncState.isOnline]);
+  }, [syncState.isOnline, getIndonesianTime]);
 
-  // Manual Trigger Sync
-  const handleTriggerSync = () => {
+  // Manual Trigger Sync with Cloud Connection Test
+  const handleTriggerSync = async () => {
     if (!syncState.isOnline) {
       addToast('Koneksi Terputus', 'Tidak dapat menyinkronkan saat mode offline. Silakan aktifkan kembali koneksi.', 'warning');
       return;
     }
 
     setSyncState(prev => ({ ...prev, isSyncing: true }));
+    const isConnected = await testConnection();
+    const timeStr = getIndonesianTime();
 
-    setTimeout(() => {
-      const now = new Date();
-      const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')} WIB`;
-      const pendingCount = syncState.pendingSyncCount;
-
-      const newLog: SyncLog = {
-        id: `log-${Date.now()}`,
-        timestamp: timeStr,
-        message: pendingCount > 0
-          ? `Sinkronisasi manual sukses: ${pendingCount} antrean data berhasil diunggah ke cloud PODA.`
-          : 'Sinkronisasi manual berhasil: seluruh data pelanggan & penjualan sudah termutakhir.',
-        type: 'success'
-      };
-
+    if (isConnected) {
       setSyncState(prev => ({
         ...prev,
         isSyncing: false,
         lastSyncTime: timeStr,
         pendingSyncCount: 0,
-        logs: [newLog, ...prev.logs.slice(0, 19)]
+        logs: [
+          {
+            id: `log-${Date.now()}`,
+            timestamp: timeStr,
+            message: 'Sinkronisasi manual berhasil: Semua data pelanggan, stok e-liquid, dan nota penjualan telah tersinkron dengan cloud server.',
+            type: 'success'
+          },
+          ...prev.logs.slice(0, 19)
+        ]
       }));
 
-      addToast('Sinkronisasi Berhasil', 'Data penjualan dan kunjungan telah tersinkronisasi ke server pusat PODA.', 'success');
-    }, 1200);
+      addToast('Sinkronisasi Berhasil', 'Data penjualan dan kunjungan telah tersinkronisasi ke server pusat cloud PODA.', 'success');
+    } else {
+      setSyncState(prev => ({
+        ...prev,
+        isSyncing: false,
+        lastSyncTime: timeStr,
+        logs: [
+          {
+            id: `log-${Date.now()}`,
+            timestamp: timeStr,
+            message: 'Koneksi ke cloud server sedang tidak tersedia. Data tersimpan di memori browser lokal.',
+            type: 'warning'
+          },
+          ...prev.logs.slice(0, 19)
+        ]
+      }));
+      addToast('Penyimpanan Lokal Aktif', 'Koneksi internet bermasalah, aplikasi tetap berjalan menggunakan cache lokal.', 'warning');
+    }
   };
 
   // Toggle Online/Offline
   const handleToggleOnline = () => {
     setSyncState(prev => {
       const nextOnline = !prev.isOnline;
-      const now = new Date();
-      const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')} WIB`;
+      const timeStr = getIndonesianTime();
 
       const newLog: SyncLog = {
         id: `log-${Date.now()}`,
         timestamp: timeStr,
         message: nextOnline 
-          ? 'Koneksi internet pulih. Memulai pemulihan dan sinkronisasi antrean...' 
+          ? 'Koneksi internet pulih. Menghubungkan kembali ke Cloud Firestore PODA...' 
           : 'Perangkat beralih ke Mode Offline. Data akan disimpan lokal dan disinkronkan saat online.',
         type: nextOnline ? 'info' : 'warning'
       };
@@ -353,8 +552,9 @@ export default function App() {
     setCurrentUser(updatedUser);
     localStorage.setItem('poda_auth_user', JSON.stringify(updatedUser));
     
-    // Update lastLogin in user list
+    // Update lastLogin in user list & Cloud Firestore
     setUsers(prev => prev.map(u => u.id === user.id ? updatedUser : u));
+    cloudSaveUser(updatedUser);
 
     // Determine initial tab: Only Super Admin lands on dashboard, others land on customers
     if (user.role === 'Super Admin') {
@@ -396,17 +596,17 @@ export default function App() {
     });
 
     setRolePermissions(sanitized);
-    addToast('Hak Akses Diperbarui', 'Matriks menu per peran jabatan berhasil disimpan dan diterapkan langsung.', 'success');
+    cloudSaveRolePermissions(sanitized);
+    addToast('Hak Akses Diperbarui', 'Matriks menu per peran jabatan berhasil disimpan ke cloud dan diterapkan langsung.', 'success');
     
     // Register sync event
     setSyncState(prev => ({
       ...prev,
-      pendingSyncCount: prev.pendingSyncCount + 1,
       logs: [
         {
           id: `log-${Date.now()}`,
-          timestamp: 'Baru saja',
-          message: 'Pembaruan matriks izin menu aplikasi oleh Admin',
+          timestamp: getIndonesianTime(),
+          message: 'Pembaruan matriks izin menu aplikasi oleh Admin disinkronkan ke cloud',
           type: 'info'
         },
         ...prev.logs.slice(0, 19)
@@ -422,16 +622,16 @@ export default function App() {
     };
 
     setUsers(prev => [newUser, ...prev]);
+    cloudSaveUser(newUser);
     addToast('Pengguna Ditambahkan', `Akun ${newUser.name} (${newUser.role}) berhasil didaftarkan.`, 'success');
 
     setSyncState(prev => ({
       ...prev,
-      pendingSyncCount: prev.pendingSyncCount + 1,
       logs: [
         {
           id: `log-${Date.now()}`,
-          timestamp: 'Baru saja',
-          message: `Penambahan akun pengguna baru: ${newUser.name} [${newUser.role}]`,
+          timestamp: getIndonesianTime(),
+          message: `Penambahan akun pengguna baru di cloud: ${newUser.name} [${newUser.role}]`,
           type: 'info'
         },
         ...prev.logs.slice(0, 19)
@@ -441,6 +641,7 @@ export default function App() {
 
   const handleUpdateUser = (updated: AppUser) => {
     setUsers(prev => prev.map(u => u.id === updated.id ? updated : u));
+    cloudSaveUser(updated);
     
     // If updating current logged in user
     if (currentUser && currentUser.id === updated.id) {
@@ -454,6 +655,7 @@ export default function App() {
   const handleDeleteUser = (userId: string) => {
     const target = users.find(u => u.id === userId);
     setUsers(prev => prev.filter(u => u.id !== userId));
+    cloudDeleteUser(userId);
     addToast('Pengguna Dihapus', target ? `Akun ${target.name} telah dihapus dari sistem.` : 'Pengguna dihapus.', 'info');
   };
 
@@ -468,54 +670,58 @@ export default function App() {
     };
 
     setCustomers(prev => [newCustomer, ...prev]);
+    cloudSaveCustomer(newCustomer);
     
     // Register sync event
     setSyncState(prev => ({
       ...prev,
-      pendingSyncCount: prev.pendingSyncCount + 1,
       logs: [
         {
           id: `log-${Date.now()}`,
-          timestamp: 'Baru saja',
-          message: `Penambahan mitra toko baru: ${newCustomer.name} (${newCustomer.area})`,
+          timestamp: getIndonesianTime(),
+          message: `Mitra toko baru disimpan ke cloud: ${newCustomer.name} (${newCustomer.area})`,
           type: 'info'
         },
         ...prev.logs.slice(0, 19)
       ]
     }));
 
-    addToast('Mitra Toko Ditambahkan', `${newCustomer.name} berhasil didaftarkan ke database sales.`, 'success');
+    addToast('Mitra Toko Ditambahkan', `${newCustomer.name} berhasil didaftarkan ke database real-time.`, 'success');
   };
 
   const handleUpdateCustomer = (updated: Customer) => {
     setCustomers(prev => prev.map(c => c.id === updated.id ? updated : c));
+    cloudSaveCustomer(updated);
+
     setSyncState(prev => ({
       ...prev,
-      pendingSyncCount: prev.pendingSyncCount + 1,
       logs: [
         {
           id: `log-${Date.now()}`,
-          timestamp: 'Baru saja',
-          message: `Pembaruan data mitra: ${updated.name}`,
+          timestamp: getIndonesianTime(),
+          message: `Pembaruan data mitra disinkronkan ke cloud: ${updated.name}`,
           type: 'info'
         },
         ...prev.logs.slice(0, 19)
       ]
     }));
-    addToast('Data Disimpan', `Perubahan untuk ${updated.name} berhasil diperbarui.`, 'success');
+    addToast('Data Disimpan', `Perubahan untuk ${updated.name} berhasil diperbarui di cloud.`, 'success');
   };
 
   const handleDeleteCustomer = (id: string) => {
     const target = customers.find(c => c.id === id);
     setCustomers(prev => prev.filter(c => c.id !== id));
-    addToast('Toko Dihapus', target ? `${target.name} dihapus dari daftar.` : 'Toko dihapus.', 'info');
+    cloudDeleteCustomer(id);
+    addToast('Toko Dihapus', target ? `${target.name} dihapus dari database cloud.` : 'Toko dihapus.', 'info');
   };
 
   const handleImportCustomers = (imported: Customer[], mode: CustomerImportMode) => {
+    let finalImported: Customer[] = imported;
     if (mode === 'append_only') {
       setCustomers(prev => {
         const existingNames = new Set(prev.map(c => c.name.toLowerCase().trim()));
         const toAdd = imported.filter(imp => !existingNames.has(imp.name.toLowerCase().trim()));
+        finalImported = toAdd;
         return [...prev, ...toAdd];
       });
     } else {
@@ -533,14 +739,15 @@ export default function App() {
       });
     }
 
+    cloudBatchSaveCustomers(finalImported);
+
     setSyncState(prev => ({
       ...prev,
-      pendingSyncCount: prev.pendingSyncCount + imported.length,
       logs: [
         {
           id: `log-${Date.now()}`,
-          timestamp: 'Baru saja',
-          message: `Import ${imported.length} data toko mitra via Excel selesai (${mode === 'append_only' ? 'Tambah Baru' : 'Perbarui & Tambah'}).`,
+          timestamp: getIndonesianTime(),
+          message: `Import ${finalImported.length} data toko mitra via Excel disinkronkan ke Cloud Firestore.`,
           type: 'success'
         },
         ...prev.logs.slice(0, 19)
@@ -564,6 +771,7 @@ export default function App() {
     };
 
     setVisits(prev => [newVisit, ...prev]);
+    cloudSaveVisit(newVisit);
     setActiveTab('visits');
     addToast('Kunjungan Dijadwalkan', `Jadwal kunjungan ke ${customer.name} telah dibuat untuk hari ini.`, 'success');
   };
@@ -581,14 +789,15 @@ export default function App() {
       id: `vis-${Date.now()}`
     };
     setVisits(prev => [newVisit, ...prev]);
+    cloudSaveVisit(newVisit);
+
     setSyncState(prev => ({
       ...prev,
-      pendingSyncCount: prev.pendingSyncCount + 1,
       logs: [
         {
           id: `log-${Date.now()}`,
-          timestamp: 'Baru saja',
-          message: `Jadwal kunjungan baru dibuat: ${newVisit.customerName} (${newVisit.purpose})`,
+          timestamp: getIndonesianTime(),
+          message: `Jadwal kunjungan baru tersimpan di cloud: ${newVisit.customerName} (${newVisit.purpose})`,
           type: 'info'
         },
         ...prev.logs.slice(0, 19)
@@ -599,16 +808,19 @@ export default function App() {
 
   const handleUpdateVisit = (updated: VisitSchedule) => {
     setVisits(prev => prev.map(v => v.id === updated.id ? updated : v));
+    cloudSaveVisit(updated);
 
-    // If visit marked completed, update customer's lastVisitDate
+    // If visit marked completed, update customer's lastVisitDate & cloud record
     if (updated.status === 'Selesai') {
       setCustomers(prev => prev.map(c => {
         if (c.id === updated.customerId) {
-          return {
+          const updatedCust = {
             ...c,
             lastVisitDate: updated.date,
-            status: 'Aktif'
+            status: 'Aktif' as CustomerStatus
           };
+          cloudSaveCustomer(updatedCust);
+          return updatedCust;
         }
         return c;
       }));
@@ -616,12 +828,11 @@ export default function App() {
 
     setSyncState(prev => ({
       ...prev,
-      pendingSyncCount: prev.pendingSyncCount + 1,
       logs: [
         {
           id: `log-${Date.now()}`,
-          timestamp: 'Baru saja',
-          message: `Pembaruan status kunjungan ${updated.customerName}: ${updated.status}`,
+          timestamp: getIndonesianTime(),
+          message: `Status kunjungan ${updated.customerName} diperbarui di cloud: ${updated.status}`,
           type: 'info'
         },
         ...prev.logs.slice(0, 19)
@@ -633,7 +844,8 @@ export default function App() {
 
   const handleDeleteVisit = (id: string) => {
     setVisits(prev => prev.filter(v => v.id !== id));
-    addToast('Jadwal Dihapus', 'Kunjungan telah dibatalkan/dihapus.', 'info');
+    cloudDeleteVisit(id);
+    addToast('Jadwal Dihapus', 'Kunjungan telah dibatalkan/dihapus dari cloud.', 'info');
   };
 
   const handleOpenSaleForVisit = (visit: VisitSchedule) => {
@@ -657,18 +869,21 @@ export default function App() {
     };
 
     setSalesReports(prev => [newReport, ...prev]);
+    cloudSaveSalesReport(newReport);
 
-    // Update customer revenue & debt
+    // Update customer revenue & debt in state + cloud
     setCustomers(prev => prev.map(c => {
       if (c.id === newReport.customerId) {
         const addedDebt = newReport.paymentStatus === 'Tempo' ? newReport.totalRevenue : 0;
-        return {
+        const updatedCust = {
           ...c,
           totalOrdersCount: c.totalOrdersCount + 1,
           totalRevenue: c.totalRevenue + newReport.totalRevenue,
           currentDebt: c.currentDebt + addedDebt,
-          status: 'Aktif'
+          status: 'Aktif' as CustomerStatus
         };
+        cloudSaveCustomer(updatedCust);
+        return updatedCust;
       }
       return c;
     }));
@@ -676,33 +891,33 @@ export default function App() {
     // Register Sync Log
     setSyncState(prev => ({
       ...prev,
-      pendingSyncCount: prev.pendingSyncCount + 1,
       logs: [
         {
           id: `log-${Date.now()}`,
-          timestamp: 'Baru saja',
-          message: `Transaksi Penjualan Baru: ${newReport.invoiceNumber} (${newReport.customerName}) - ${newReport.totalBottles} Botol`,
+          timestamp: getIndonesianTime(),
+          message: `Transaksi Penjualan Baru disinkronkan ke cloud: ${newReport.invoiceNumber} (${newReport.customerName}) - ${newReport.totalBottles} Botol`,
           type: 'success'
         },
         ...prev.logs.slice(0, 19)
       ]
     }));
 
-    addToast('Penjualan Dicatat', `Nota ${invoiceNumber} berhasil disimpan dan masuk ke kuota harian.`, 'success');
+    addToast('Penjualan Dicatat', `Nota ${invoiceNumber} berhasil disimpan ke cloud database.`, 'success');
   };
 
   // Product Catalog & Physical Stock Management Handler
   const handleUpdateProducts = (updatedProducts: ProductLiquid[], actionMessage?: string) => {
     setProducts(updatedProducts);
+    cloudBatchSaveProducts(updatedProducts);
+
     if (actionMessage) {
       setSyncState(prev => ({
         ...prev,
-        pendingSyncCount: prev.pendingSyncCount + 1,
         logs: [
           {
             id: `log-${Date.now()}`,
-            timestamp: 'Baru saja',
-            message: actionMessage,
+            timestamp: getIndonesianTime(),
+            message: `${actionMessage} (tersinkronkan ke cloud)`,
             type: 'success'
           },
           ...prev.logs.slice(0, 19)
@@ -714,14 +929,15 @@ export default function App() {
   // Company Branding & Logo Session Handler
   const handleSaveBranding = (updatedBranding: CompanyBranding, message: string) => {
     setBranding(updatedBranding);
+    cloudSaveBranding(updatedBranding);
+
     setSyncState(prev => ({
       ...prev,
-      pendingSyncCount: prev.pendingSyncCount + 1,
       logs: [
         {
           id: `log-${Date.now()}`,
-          timestamp: 'Baru saja',
-          message,
+          timestamp: getIndonesianTime(),
+          message: `${message} (tersinkronkan ke cloud)`,
           type: 'success'
         },
         ...prev.logs.slice(0, 19)

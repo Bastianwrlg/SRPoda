@@ -25,6 +25,9 @@ export default defineConfig(() => {
               if (id.includes('xlsx')) {
                 return 'vendor-xlsx';
               }
+              if (id.includes('firebase')) {
+                return 'vendor-firebase';
+              }
               if (id.includes('lucide-react')) {
                 return 'vendor-icons';
               }

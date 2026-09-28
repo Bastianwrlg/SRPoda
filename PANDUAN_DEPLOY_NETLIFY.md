@@ -72,3 +72,11 @@ Pesan tersebut adalah **peringatan optimasi** dari Vite/Rollup karena pustaka pe
    netlify deploy --prod
    ```
    (Pilih publish folder: `dist`).
+
+---
+
+### Fitur Sinkronisasi Real-Time Multi-User (Firebase Firestore)
+Aplikasi ini kini dilengkapi dengan sinkronisasi database cloud **Firebase Firestore**:
+- **Real-Time Listener (`onSnapshot`)**: Ketika ada beberapa pengguna mengakses aplikasi web secara bersamaan (misalnya Sales Rep A di lapangan dan Sales Manager di kantor), setiap penambahan toko mitra, transaksi penjualan, update stok e-liquid, dan status kunjungan akan **langsung terupdate secara instan** di layar pengguna lain tanpa perlu me-refresh halaman web.
+- **Offline Fallback**: Jika koneksi internet terputus, data tetap aman tersimpan di cache lokal browser dan akan otomatis disinkronkan kembali saat online.
+

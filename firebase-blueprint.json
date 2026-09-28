@@ -1,0 +1,180 @@
+{
+  "entities": {
+    "Customer": {
+      "title": "Customer",
+      "description": "Retail shop or vape store customer profile and financial tracking",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 200 },
+        "ownerName": { "type": "string", "maxLength": 200 },
+        "phone": { "type": "string", "maxLength": 50 },
+        "email": { "type": "string", "maxLength": 120 },
+        "address": { "type": "string", "maxLength": 500 },
+        "area": { "type": "string", "maxLength": 100 },
+        "tier": { "type": "string", "enum": ["Distributor", "Wholesaler", "Retail Premium", "Retail Regular"] },
+        "status": { "type": "string", "enum": ["Aktif", "Perlu Kunjungan", "Menunggu Restock", "Non-Aktif"] },
+        "creditLimit": { "type": "number" },
+        "currentDebt": { "type": "number" },
+        "totalOrdersCount": { "type": "number" },
+        "totalRevenue": { "type": "number" },
+        "lastVisitDate": { "type": "string", "maxLength": 50 },
+        "notes": { "type": "string", "maxLength": 1000 },
+        "coordinates": { "type": "object" }
+      },
+      "required": ["id", "name", "ownerName", "phone", "address", "area", "tier", "status"]
+    },
+    "ProductLiquid": {
+      "title": "ProductLiquid",
+      "description": "E-liquid product item with stock and pricing",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 200 },
+        "variant": { "type": "string", "maxLength": 200 },
+        "category": { "type": "string", "enum": ["Saltnic", "Freebase", "Pods Friendly"] },
+        "nicotine": { "type": "string", "maxLength": 50 },
+        "volume": { "type": "string", "maxLength": 50 },
+        "retailPrice": { "type": "number" },
+        "wholesalePrice": { "type": "number" },
+        "stock": { "type": "number" },
+        "badgeColor": { "type": "string", "maxLength": 100 },
+        "description": { "type": "string", "maxLength": 500 }
+      },
+      "required": ["id", "name", "category", "retailPrice", "wholesalePrice", "stock"]
+    },
+    "VisitSchedule": {
+      "title": "VisitSchedule",
+      "description": "Sales representative scheduled visit to customer store",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "customerId": { "type": "string", "maxLength": 128 },
+        "customerName": { "type": "string", "maxLength": 200 },
+        "customerArea": { "type": "string", "maxLength": 100 },
+        "date": { "type": "string", "maxLength": 20 },
+        "time": { "type": "string", "maxLength": 20 },
+        "purpose": { "type": "string", "maxLength": 100 },
+        "status": { "type": "string", "enum": ["Terjadwal", "Sedang Berlangsung", "Selesai", "Dibatalkan"] },
+        "priority": { "type": "string", "enum": ["Tinggi", "Sedang", "Rendah"] },
+        "notes": { "type": "string", "maxLength": 1000 },
+        "checkInTime": { "type": "string", "maxLength": 30 },
+        "checkOutTime": { "type": "string", "maxLength": 30 },
+        "durationMinutes": { "type": "number" },
+        "salesResult": { "type": "number" },
+        "checklist": { "type": "object" },
+        "photoUrl": { "type": "string", "maxLength": 500000 },
+        "locationVerified": { "type": "boolean" }
+      },
+      "required": ["id", "customerId", "customerName", "date", "time", "purpose", "status", "priority"]
+    },
+    "DailySalesReport": {
+      "title": "DailySalesReport",
+      "description": "Sales invoice report and order record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "invoiceNumber": { "type": "string", "maxLength": 100 },
+        "date": { "type": "string", "maxLength": 20 },
+        "time": { "type": "string", "maxLength": 20 },
+        "customerId": { "type": "string", "maxLength": 128 },
+        "customerName": { "type": "string", "maxLength": 200 },
+        "customerArea": { "type": "string", "maxLength": 100 },
+        "salesRepName": { "type": "string", "maxLength": 200 },
+        "items": { "type": "array" },
+        "totalBottles": { "type": "number" },
+        "totalRevenue": { "type": "number" },
+        "paymentMethod": { "type": "string", "maxLength": 100 },
+        "paymentStatus": { "type": "string", "enum": ["Lunas", "Pending", "Tempo"] },
+        "notes": { "type": "string", "maxLength": 1000 },
+        "visitId": { "type": "string", "maxLength": 128 }
+      },
+      "required": ["id", "invoiceNumber", "date", "customerId", "customerName", "totalRevenue", "paymentStatus"]
+    },
+    "AppUser": {
+      "title": "AppUser",
+      "description": "Application user account with role access",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 200 },
+        "username": { "type": "string", "maxLength": 100 },
+        "email": { "type": "string", "maxLength": 150 },
+        "password": { "type": "string", "maxLength": 200 },
+        "role": { "type": "string", "maxLength": 100 },
+        "salesRepCode": { "type": "string", "maxLength": 50 },
+        "area": { "type": "string", "maxLength": 100 },
+        "phone": { "type": "string", "maxLength": 50 },
+        "status": { "type": "string", "enum": ["Aktif", "Nonaktif"] },
+        "avatarInitials": { "type": "string", "maxLength": 10 },
+        "lastLogin": { "type": "string", "maxLength": 50 },
+        "createdAt": { "type": "string", "maxLength": 50 }
+      },
+      "required": ["id", "name", "username", "role", "status"]
+    },
+    "RolePermission": {
+      "title": "RolePermission",
+      "description": "Role access control and navigation rules",
+      "type": "object",
+      "properties": {
+        "role": { "type": "string", "maxLength": 100 },
+        "title": { "type": "string", "maxLength": 100 },
+        "description": { "type": "string", "maxLength": 500 },
+        "badgeColor": { "type": "string", "maxLength": 100 },
+        "allowedTabs": { "type": "array" },
+        "canAddUser": { "type": "boolean" },
+        "canEditRoleAccess": { "type": "boolean" },
+        "canDeleteUser": { "type": "boolean" }
+      },
+      "required": ["role", "title", "allowedTabs"]
+    },
+    "CompanyBranding": {
+      "title": "CompanyBranding",
+      "description": "Company name, logo, and session configuration",
+      "type": "object",
+      "properties": {
+        "companyName": { "type": "string", "maxLength": 200 },
+        "brandSubtext": { "type": "string", "maxLength": 300 },
+        "logoUrl": { "type": "string", "maxLength": 1000000 },
+        "logoShape": { "type": "string", "maxLength": 50 },
+        "sessionToken": { "type": "string", "maxLength": 200 },
+        "encryptionAlgorithm": { "type": "string", "maxLength": 100 },
+        "sessionHash": { "type": "string", "maxLength": 200 },
+        "lastUpdated": { "type": "string", "maxLength": 100 },
+        "updatedBy": { "type": "string", "maxLength": 100 },
+        "isVerifiedEncrypted": { "type": "boolean" }
+      },
+      "required": ["companyName"]
+    }
+  },
+  "firestore": {
+    "/customers/{customerId}": {
+      "schema": { "$ref": "#/entities/Customer" },
+      "description": "Collection of retail and wholesale customer records"
+    },
+    "/products/{productId}": {
+      "schema": { "$ref": "#/entities/ProductLiquid" },
+      "description": "Collection of e-liquid products and inventory stock"
+    },
+    "/visits/{visitId}": {
+      "schema": { "$ref": "#/entities/VisitSchedule" },
+      "description": "Collection of field visit schedules and tracking"
+    },
+    "/salesReports/{reportId}": {
+      "schema": { "$ref": "#/entities/DailySalesReport" },
+      "description": "Collection of daily sales transactions and invoices"
+    },
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/AppUser" },
+      "description": "Collection of staff and sales users"
+    },
+    "/rolePermissions/{roleId}": {
+      "schema": { "$ref": "#/entities/RolePermission" },
+      "description": "Collection of role-based access control configurations"
+    },
+    "/settings/{settingId}": {
+      "schema": { "$ref": "#/entities/CompanyBranding" },
+      "description": "Company branding, general settings, and daily targets"
+    }
+  }
+}
